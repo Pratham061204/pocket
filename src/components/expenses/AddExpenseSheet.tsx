@@ -29,11 +29,12 @@ import { formatCurrency, convertAmount, SUPPORTED_CURRENCIES } from "@/lib/curre
 import { addExpense } from "@/actions/expenses";
 import { uploadReceipt } from "@/actions/receipts";
 
+type SplitMode = "EQUAL" | "AMOUNT" | "PERCENT";
+
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
   totalAmount: z.number().positive("Must be positive"),
   paidById: z.string().min(1, "Select who paid"),
-  splitType: z.enum(["EQUAL", "UNEQUAL"]),
   splits: z.array(z.object({ userId: z.string(), amountOwed: z.number().min(0) })),
   isRecurring: z.boolean(),
   recurringDay: z.number().int().min(1).max(28).optional(),
@@ -56,6 +57,9 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
   const [inputCurrency, setInputCurrency] = useState(currency);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [splitMode, setSplitMode] = useState<SplitMode>("EQUAL");
+  // Percentage inputs — separate state, not part of react-hook-form
+  const [percentages, setPercentages] = useState<number[]>(members.map(() => Math.round(100 / members.length)));
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -73,7 +77,6 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
         title: "",
         totalAmount: 0,
         paidById: currentUserId,
-        splitType: "EQUAL",
         splits: members.map((m) => ({ userId: m.id, amountOwed: 0 })),
         isRecurring: false,
         recurringDay: new Date().getDate(),
@@ -83,7 +86,6 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
   const { fields } = useFieldArray({ control, name: "splits" });
 
   const watchTotal = watch("totalAmount");
-  const watchSplitType = watch("splitType");
   const watchSplits = watch("splits");
   const watchRecurring = watch("isRecurring");
 
@@ -92,20 +94,61 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
       ? convertAmount(watchTotal, inputCurrency, currency, rates ?? undefined)
       : watchTotal;
 
+  // Recalculate amounts whenever total or mode changes
   useEffect(() => {
-    if (watchSplitType === "EQUAL" && convertedTotal > 0) {
+    if (convertedTotal <= 0) return;
+    if (splitMode === "EQUAL") {
       const share = Math.round((convertedTotal / members.length) * 100) / 100;
       members.forEach((_, i) => setValue(`splits.${i}.amountOwed`, share));
+    } else if (splitMode === "PERCENT") {
+      members.forEach((_, i) => {
+        const amt = Math.round((convertedTotal * (percentages[i] ?? 0)) / 100 * 100) / 100;
+        setValue(`splits.${i}.amountOwed`, amt);
+      });
     }
-  }, [convertedTotal, watchSplitType, members.length]);
+  }, [convertedTotal, splitMode]);
+
+  function handlePercentChange(index: number, value: number) {
+    const updated = [...percentages];
+    updated[index] = value;
+    setPercentages(updated);
+    if (convertedTotal > 0) {
+      const amt = Math.round((convertedTotal * value) / 100 * 100) / 100;
+      setValue(`splits.${index}.amountOwed`, amt);
+    }
+  }
 
   const splitSum = watchSplits.reduce((s, sp) => s + (Number(sp.amountOwed) || 0), 0);
   const splitDiff = Math.abs(splitSum - (Number(convertedTotal) || 0));
-  const isUnequalValid = watchSplitType === "EQUAL" || splitDiff < 0.01;
+  const percentSum = percentages.reduce((a, b) => a + b, 0);
+
+  const isValid =
+    splitMode === "EQUAL" ||
+    (splitMode === "AMOUNT" && splitDiff < 0.01) ||
+    (splitMode === "PERCENT" && Math.abs(percentSum - 100) < 0.01 && splitDiff < 0.01);
+
+  function handleModeChange(mode: SplitMode) {
+    setSplitMode(mode);
+    if (mode === "EQUAL" && convertedTotal > 0) {
+      const share = Math.round((convertedTotal / members.length) * 100) / 100;
+      members.forEach((_, i) => setValue(`splits.${i}.amountOwed`, share));
+    }
+    if (mode === "PERCENT") {
+      const even = Math.round(100 / members.length);
+      const newPcts = members.map((_, i) => (i === members.length - 1 ? 100 - even * (members.length - 1) : even));
+      setPercentages(newPcts);
+      if (convertedTotal > 0) {
+        newPcts.forEach((pct, i) => {
+          setValue(`splits.${i}.amountOwed`, Math.round((convertedTotal * pct) / 100 * 100) / 100);
+        });
+      }
+    }
+  }
 
   async function onSubmit(data: FormValues) {
-    if (!isUnequalValid) {
-      toast.error(`Splits sum to ${formatCurrency(splitSum, currency)}, expected ${formatCurrency(convertedTotal, currency)}`);
+    if (!isValid) {
+      if (splitMode === "PERCENT") toast.error(`Percentages sum to ${percentSum}%, must be 100%`);
+      else toast.error(`Splits sum to ${formatCurrency(splitSum, currency)}, expected ${formatCurrency(convertedTotal, currency)}`);
       return;
     }
     setLoading(true);
@@ -122,7 +165,7 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
         title: data.title,
         totalAmount: convertedTotal,
         paidById: data.paidById,
-        splitType: data.splitType,
+        splitType: splitMode === "EQUAL" ? "EQUAL" : "UNEQUAL",
         splits: data.splits.map((s) => ({ userId: s.userId, amountOwed: s.amountOwed })),
         receiptUrl,
         isRecurring: data.isRecurring,
@@ -133,6 +176,8 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
       reset();
       setInputCurrency(currency);
       setReceiptFile(null);
+      setSplitMode("EQUAL");
+      setPercentages(members.map(() => Math.round(100 / members.length)));
       setOpen(false);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to add expense");
@@ -206,22 +251,22 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
             </Select>
           </div>
 
-          {/* Split type */}
+          {/* Split mode */}
           <div className="space-y-1.5">
             <Label>Split type</Label>
             <div className="flex gap-2">
-              {(["EQUAL", "UNEQUAL"] as const).map((type) => (
+              {(["EQUAL", "AMOUNT", "PERCENT"] as const).map((mode) => (
                 <button
-                  key={type}
+                  key={mode}
                   type="button"
-                  onClick={() => setValue("splitType", type)}
+                  onClick={() => handleModeChange(mode)}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    watchSplitType === type
+                    splitMode === mode
                       ? "bg-black text-white border-black"
                       : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
                   }`}
                 >
-                  {type === "EQUAL" ? "Equal" : "Custom"}
+                  {mode === "EQUAL" ? "Equal" : mode === "AMOUNT" ? "Amount" : "%"}
                 </button>
               ))}
             </div>
@@ -230,33 +275,60 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
           {/* Split details */}
           <div className="space-y-2">
             <Label>
-              Split details
-              {watchSplitType === "EQUAL" && convertedTotal > 0 && (
+              {splitMode === "EQUAL" && "Split details"}
+              {splitMode === "AMOUNT" && "Enter amounts"}
+              {splitMode === "PERCENT" && "Enter percentages"}
+              {splitMode === "EQUAL" && convertedTotal > 0 && (
                 <span className="text-gray-400 font-normal ml-2 text-xs">
                   ({formatCurrency(convertedTotal / members.length, currency)} each)
                 </span>
               )}
+              {splitMode === "PERCENT" && (
+                <span className={`font-normal ml-2 text-xs ${Math.abs(percentSum - 100) < 0.01 ? "text-gray-400" : "text-red-500"}`}>
+                  ({percentSum}% of 100%)
+                </span>
+              )}
             </Label>
+
             {fields.map((field, i) => {
               const member = members[i];
               return (
                 <div key={field.id} className="flex items-center gap-3">
                   <span className="text-sm text-gray-700 flex-1">{member?.name}</span>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    className="w-28 text-right"
-                    readOnly={watchSplitType === "EQUAL"}
-                    {...register(`splits.${i}.amountOwed`, { valueAsNumber: true })}
-                  />
+                  {splitMode === "PERCENT" ? (
+                    <div className="flex items-center gap-1 w-36">
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        className="w-20 text-right"
+                        value={percentages[i] ?? 0}
+                        onChange={(e) => handlePercentChange(i, parseFloat(e.target.value) || 0)}
+                      />
+                      <span className="text-sm text-gray-400">%</span>
+                      <span className="text-xs text-gray-400 w-16 text-right">
+                        {convertedTotal > 0 ? formatCurrency(watchSplits[i]?.amountOwed ?? 0, currency) : ""}
+                      </span>
+                    </div>
+                  ) : (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-28 text-right"
+                      readOnly={splitMode === "EQUAL"}
+                      {...register(`splits.${i}.amountOwed`, { valueAsNumber: true })}
+                    />
+                  )}
                 </div>
               );
             })}
-            {watchSplitType === "UNEQUAL" && (
-              <div className={`flex justify-between text-xs pt-1 ${isUnequalValid ? "text-gray-400" : "text-red-500 font-medium"}`}>
+
+            {splitMode === "AMOUNT" && (
+              <div className={`flex justify-between text-xs pt-1 ${isValid ? "text-gray-400" : "text-red-500 font-medium"}`}>
                 <span>Sum: {formatCurrency(splitSum, currency)}</span>
-                {!isUnequalValid && <span>Off by {formatCurrency(splitDiff, currency)}</span>}
+                {!isValid && <span>Off by {formatCurrency(splitDiff, currency)}</span>}
               </div>
             )}
           </div>
@@ -321,7 +393,7 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading || !isUnequalValid}>
+          <Button type="submit" className="w-full" disabled={loading || !isValid}>
             {loading ? "Adding…" : "Add expense"}
           </Button>
         </form>
