@@ -215,7 +215,7 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
                 </SelectTrigger>
                 <SelectContent>
                   {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>
+                    <SelectItem key={c.code} value={c.code} label={c.code}>{c.code}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -242,11 +242,14 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
             <Select value={watch("paidById")} onValueChange={(v) => v && setValue("paidById", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.id === currentUserId ? `${m.name} (you)` : m.name}
-                  </SelectItem>
-                ))}
+                {members.map((m) => {
+                  const label = m.id === currentUserId ? `${m.name} (you)` : m.name;
+                  return (
+                    <SelectItem key={m.id} value={m.id} label={label}>
+                      {label}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>

@@ -50,7 +50,7 @@ export default function NewGroupPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code}>
+                    <SelectItem key={c.code} value={c.code} label={c.label}>
                       {c.label}
                     </SelectItem>
                   ))}
