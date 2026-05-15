@@ -164,7 +164,7 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
           <div className="space-y-1.5">
             <Label>Total amount</Label>
             <div className="flex gap-2">
-              <Select value={inputCurrency} onValueChange={setInputCurrency}>
+              <Select value={inputCurrency} onValueChange={(v) => v && setInputCurrency(v)}>
                 <SelectTrigger className="w-28 shrink-0">
                   <SelectValue />
                 </SelectTrigger>
