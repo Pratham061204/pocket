@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Live demo:** <pocket-oxq4.vercel.app>
+**Live demo:** <https://pocket-oxq4.vercel.app/>
 **Repo:** <https://github.com/Pratham061204/pocket>
 **Demo video:** <PASTE_YOUR_DEMO_VIDEO_LINK_AFTER_RECORDING>
 
