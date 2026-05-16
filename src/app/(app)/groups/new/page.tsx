@@ -3,14 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { CurrencySelect } from "@/components/groups/CurrencySelect";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
@@ -44,18 +37,7 @@ export default function NewGroupPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="currency">Currency</Label>
-              <Select name="currency" defaultValue="INR">
-                <SelectTrigger id="currency">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SUPPORTED_CURRENCIES.map((c) => (
-                    <SelectItem key={c.code} value={c.code} label={c.label}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencySelect />
             </div>
 
             <Button type="submit" className="w-full">

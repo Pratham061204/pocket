@@ -211,7 +211,7 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
             <div className="flex gap-2">
               <Select value={inputCurrency} onValueChange={(v) => v && setInputCurrency(v)}>
                 <SelectTrigger className="w-28 shrink-0">
-                  <SelectValue />
+                  <span className="flex-1 text-left text-sm">{inputCurrency}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {SUPPORTED_CURRENCIES.map((c) => (
@@ -240,7 +240,15 @@ export function AddExpenseSheet({ groupId, members, currency, currentUserId }: A
           <div className="space-y-1.5">
             <Label>Paid by</Label>
             <Select value={watch("paidById")} onValueChange={(v) => v && setValue("paidById", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <span className="flex-1 text-left text-sm">
+                  {(() => {
+                    const m = members.find((m) => m.id === watch("paidById"));
+                    if (!m) return "Select member";
+                    return m.id === currentUserId ? `${m.name} (you)` : m.name;
+                  })()}
+                </span>
+              </SelectTrigger>
               <SelectContent>
                 {members.map((m) => {
                   const label = m.id === currentUserId ? `${m.name} (you)` : m.name;
