@@ -1,38 +1,71 @@
-# Pocket — Split expenses, settle simply.
+# Case 2: Pocket — Roommate Expense Splitter
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A stripped-down expense splitter focused on one job: at any moment, anyone in the group should know — in one glance — who owes whom and how much.
+**Live demo:** <PASTE_YOUR_VERCEL_URL_HERE>
+**Repo:** <https://github.com/Pratham061204/pocket>
+**Demo video:** <PASTE_YOUR_DEMO_VIDEO_LINK_AFTER_RECORDING>
 
-**Live demo:** [pocket.vercel.app](https://pocket.vercel.app) <!-- TODO: replace with your real Vercel URL -->
-
-**Demo login:** Click "Try Demo Account" on the login page. No sign-up needed.
-
----
-
-## Screenshot
-
-<!-- Replace with an actual screenshot or GIF of the working app -->
-![Pocket app screenshot](docs/screenshot.png)
+> **Demo login:** Click **"Try Demo Account"** on the login page — no sign-up needed.
 
 ---
 
-## Features
+## What this is
 
-### Core
-- **Groups** — Create a group, share an invite link/code, members join instantly
-- **Expenses** — Add expenses with equal, custom amount, or percentage splits
-- **Balances** — Clean "who owes whom" view using a transaction-minimizing algorithm
-- **Settle up** — One-tap settlement that updates balances and writes to the audit trail
-- **Activity feed** — Full audit trail of every expense, deletion, and settlement
+A group expense splitter for roommates and shared households: add an expense, choose who paid and how to split it (equally, by amount, or by percentage), and the app tells you — in one glance — exactly who owes whom and how much. It minimizes the number of bank transfers needed to settle the group using a greedy netting algorithm.
 
-### Stretch goals
-- **Recurring expenses** — Mark any expense as monthly; it auto-generates on the configured day each month
-- **Receipt upload** — Attach a photo or PDF receipt to any expense (stored in Supabase Storage)
-- **Export CSV** — Download the full group ledger (expenses + settlements) as a spreadsheet
+---
 
-### Multi-currency
-Enter any expense in a foreign currency — the app fetches live exchange rates and converts to the group's base currency before saving.
+## How to run locally
+
+1. `git clone https://github.com/Pratham061204/pocket.git`
+2. `cd pocket && npm install`
+3. Copy `.env.local.example` to `.env.local` and fill in your Supabase URL, anon key, and DB connection strings
+4. `npx prisma db push && npx prisma db seed`
+5. `npm run dev` → open <http://localhost:3000>
+
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `DATABASE_URL` | Postgres connection string (pooled, port 6543) |
+| `DIRECT_URL` | Postgres direct connection string (port 5432) |
+| `NEXT_PUBLIC_SITE_URL` | Deployed URL (for auth redirects) |
+
+---
+
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Framework | Next.js 16 App Router + Server Actions | Co-locates data fetching with UI; no separate API layer needed |
+| Database | PostgreSQL via Supabase | Free hosted Postgres; relational integrity required for the netting logic |
+| ORM | Prisma | Type-safe migrations and readable relation syntax — fastest DX for rapid iteration |
+| Auth | Supabase Auth (magic link + demo account) | Same SDK as the DB; zero extra cost or config |
+| Styling | Tailwind CSS v4 | Utility-first; ships with the headless component library used |
+| Deployment | Vercel | Zero-config Next.js deploys; free tier sufficient |
+
+---
+
+## What's NOT done
+
+- **Email notifications** — "you owe X" alerts need a queue (Resend/Postmark); out of scope for the time box.
+- **Push notifications** — requires a service worker and VAPID keys; not justified for a 1-day build.
+- **Expense editing** — delete + re-add covers the use case; editing adds significant UI and audit-trail complexity.
+- **Group deletion** — destructive with cascading debt implications; soft-delete on expenses is already in place.
+- **Mobile app** — the web app is responsive; a native app is a separate project.
+
+---
+
+## In production, I would also add
+
+- Snapshot the exchange rate at the moment of expense entry (currently converts at submission time, which is correct, but the rate itself is not stored — re-running the calculation later would silently change settled debts).
+- Replace the lazy recurring-expense generation (triggered on page load) with a proper scheduled job via Vercel Cron Jobs.
+- Proactive email or push notification when a balance crosses a user-defined threshold (e.g. "Rahul now owes you ₹2,000").
+- Banker's rounding (round-half-to-even) with per-transaction remainder tracking to prevent ₹0.01 drift across many splits.
+- End-to-end tests (Playwright) covering the netting algorithm with known fixed inputs to prevent regression.
 
 ---
 
@@ -57,63 +90,11 @@ Algorithm output (2 transactions instead of naive 3):
   Carol → Bob    ₹40
 ```
 
-A→B + B→C nets out automatically — no unnecessary hops.
+Implemented in `src/lib/balance.ts`. O(n log n) vs. the exact minimum-transactions problem which is NP-hard.
 
 ---
 
-## Currency conversion note
+## Screenshot
 
-The current implementation fetches live rates from [open.er-api.com](https://open.er-api.com) (free tier, cached server-side for 1 hour) and converts foreign-currency expense amounts into the group's base currency before persisting.
-
-**To make this production-grade at international scale:**
-
-- **Store original currency + amount** alongside the converted amount on the `Expense` record so the source data is never lost
-- **Snapshot the exchange rate at the time of entry** (not at query time) — balances must be deterministic; re-querying rates later would silently change settled debts
-- **Per-group base currency** is already in the schema (`Group.currency`); extend to per-user preferred display currency with a conversion layer at render time
-- **Rate provider** — swap the free tier for a paid provider (Fixer.io, Open Exchange Rates) with higher rate limits and SLA guarantees for production
-- **Rounding** — use banker's rounding (round-half-to-even) and track rounding remainders to prevent ₹0.01 drift accumulating across many splits
-
----
-
-## Tech stack
-
-| Layer | Choice |
-|---|---|
-| Framework | Next.js 16 (App Router, Server Actions) |
-| Database | PostgreSQL via Supabase |
-| ORM | Prisma |
-| Auth | Supabase Auth (magic link + demo account) |
-| Styling | Tailwind CSS v4 |
-| Deployment | Vercel |
-
----
-
-## Running locally
-
-```bash
-# 1. Clone and install
-git clone https://github.com/Pratham061204/pocket.git
-cd pocket
-npm install
-
-# 2. Set environment variables
-cp .env.local.example .env.local
-# Fill in your Supabase URL, anon key, and DB connection strings
-
-# 3. Push schema and seed demo data
-npx prisma db push
-npx prisma db seed
-
-# 4. Start dev server
-npm run dev
-```
-
-### Environment variables
-
-| Variable | Description |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `DATABASE_URL` | Postgres connection string (pooled, port 6543) |
-| `DIRECT_URL` | Postgres direct connection string (port 5432) |
-| `NEXT_PUBLIC_SITE_URL` | Deployed URL (for auth redirects) |
+<!-- Add a screenshot: take one of the Flatmates group → Balances tab, save as docs/screenshot.png, commit & push -->
+![Pocket app — balances view](docs/screenshot.png)
