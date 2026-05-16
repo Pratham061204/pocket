@@ -2,7 +2,7 @@
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Live demo:** <PASTE_YOUR_VERCEL_URL_HERE>
+**Live demo:** <pocket-oxq4.vercel.app>
 **Repo:** <https://github.com/Pratham061204/pocket>
 **Demo video:** <PASTE_YOUR_DEMO_VIDEO_LINK_AFTER_RECORDING>
 
@@ -55,7 +55,6 @@ A group expense splitter for roommates and shared households: add an expense, ch
 - **Push notifications** — requires a service worker and VAPID keys; not justified for a 1-day build.
 - **Expense editing** — delete + re-add covers the use case; editing adds significant UI and audit-trail complexity.
 - **Group deletion** — destructive with cascading debt implications; soft-delete on expenses is already in place.
-- **Mobile app** — the web app is responsive; a native app is a separate project.
 
 ---
 
