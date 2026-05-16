@@ -1,10 +1,19 @@
 # Pocket — Split expenses, settle simply.
 
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A stripped-down expense splitter focused on one job: at any moment, anyone in the group should know — in one glance — who owes whom and how much.
 
-**Live demo:** [your-vercel-url.vercel.app](https://your-vercel-url.vercel.app)
+**Live demo:** [pocket.vercel.app](https://pocket.vercel.app) <!-- TODO: replace with your real Vercel URL -->
 
 **Demo login:** Click "Try Demo Account" on the login page. No sign-up needed.
+
+---
+
+## Screenshot
+
+<!-- Replace with an actual screenshot or GIF of the working app -->
+![Pocket app screenshot](docs/screenshot.png)
 
 ---
 
