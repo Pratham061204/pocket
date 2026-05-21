@@ -4,7 +4,7 @@
 
 **Live demo:** <https://pocket-oxq4.vercel.app/>
 **Repo:** <https://github.com/Pratham061204/pocket>
-**Demo video:** <https://www.loom.com/share/ce143ab153df433a830c15418b3f7c14>
+**Demo video:** <https://www.loom.com/share/09c03458331743f89797b27f9a1dcc57>
 
 > **Demo login:** Click **"Try Demo Account"** on the login page — no sign-up needed.
 
